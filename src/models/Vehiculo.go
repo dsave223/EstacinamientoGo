@@ -24,6 +24,7 @@ func NewVehiculo(id int) *Vehiculo {
 // Register añade un observador al vehículo
 func (v *Vehiculo) Register(observer Observer) {
 	v.Observers = append(v.Observers, observer)
+	fmt.Println("nos")
 }
 
 // Unregister elimina un observador del vehículo
