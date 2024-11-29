@@ -1,27 +1,26 @@
 package models
-
 type Espacio struct {
-	ID       int
-	Ocupado  bool
-	Vehiculo *Vehiculo
+    ID       int
+    Ocupado  bool
+    Vehiculo *Vehiculo
+    Posicion Pos
 }
 
-// NewEspacio crea un nuevo espacio de estacionamiento.
-func NewEspacio(id int) *Espacio {
-	return &Espacio{
-		ID:      id,
-		Ocupado: false,
-	}
+func NewEspacio(id int, x, y int32) *Espacio {
+    return &Espacio{
+        ID:       id,
+        Ocupado:  false,
+        Vehiculo: nil,
+        Posicion: Pos{X: x, Y: y},
+    }
 }
 
-// Ocupar marca el espacio como ocupado por un vehículo.
 func (e *Espacio) Ocupar(vehiculo *Vehiculo) {
-	e.Ocupado = true
-	e.Vehiculo = vehiculo
+    e.Ocupado = true
+    e.Vehiculo = vehiculo
 }
 
-// Liberar libera el espacio, dejándolo disponible.
 func (e *Espacio) Liberar() {
-	e.Ocupado = false
-	e.Vehiculo = nil
+    e.Ocupado = false
+    e.Vehiculo = nil
 }

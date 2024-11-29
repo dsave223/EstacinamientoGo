@@ -1,58 +1,104 @@
 package models
 
 import (
-	"sync"
+    "fmt"
+    "sync"
 )
 
-type Parking struct {
-	Espacios []*Espacio
-	Mutex    sync.Mutex
+type Estacionamiento struct {
+    Capacidad       int
+    Espacios        []*Espacio
+    EntradaSalida   sync.Mutex
+    CondicionEspera *sync.Cond
+    Observers       []Observer
 }
 
-// NewParking crea un nuevo estacionamiento con el número de espacios especificado.
-func NewParking(numEspacios int) *Parking {
-	espacios := make([]*Espacio, numEspacios)
-	for i := 0; i < numEspacios; i++ {
-		espacios[i] = NewEspacio(i)
-	}
-	return &Parking{
-		Espacios: espacios,
-	}
+func NewEstacionamiento(capacidad int) *Estacionamiento {
+    mu := &sync.Mutex{}
+    
+    estacionamiento := &Estacionamiento{
+        Capacidad:       capacidad,
+        Espacios:        make([]*Espacio, capacidad),
+        CondicionEspera: sync.NewCond(mu),
+        Observers:       []Observer{},
+    }
+
+    // Configurar posiciones de espacios (ejemplo de disposición)
+    for i := 0; i < capacidad; i++ {
+        x := 50 + int32((i%5) * 120)
+        y := 100 + int32((i/5) * 70)
+        estacionamiento.Espacios[i] = NewEspacio(i+1, x, y)
+    }
+
+    return estacionamiento
 }
 
-// VerificarDisponibilidad retorna true si hay al menos un espacio disponible.
-func (p *Parking) VerificarDisponibilidad() bool {
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+func (e *Estacionamiento) Entrar(vehiculo *Vehiculo) *Espacio {
+    e.EntradaSalida.Lock()
+    defer e.EntradaSalida.Unlock()
 
-	for _, espacio := range p.Espacios {
-		if !espacio.Ocupado {
-			return true
-		}
-	}
-	return false
+    // Esperar mientras no haya espacios disponibles
+    for e.EspaciosOcupados() >= e.Capacidad {
+        e.NotificarObservadores(fmt.Sprintf("Vehículo %d esperando espacio", vehiculo.ID))
+        e.CondicionEspera.Wait()
+    }
+
+    // Encontrar y ocupar un espacio disponible
+    for _, espacio := range e.Espacios {
+        if !espacio.Ocupado {
+            espacio.Ocupar(vehiculo)
+            e.NotificarObservadores(fmt.Sprintf("Vehículo %d entra en espacio %d", vehiculo.ID, espacio.ID))
+            
+            // Configurar posición del vehículo en el espacio
+            vehiculo.SetPosicion(espacio.Posicion)
+            
+            return espacio
+        }
+    }
+
+    return nil
 }
 
-// OcuparEspacio asigna un vehículo al primer espacio disponible.
-func (p *Parking) OcuparEspacio(vehiculo *Vehiculo) *Espacio {
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+func (e *Estacionamiento) Salir(espacio *Espacio) {
+    e.EntradaSalida.Lock()
+    defer e.EntradaSalida.Unlock()
 
-	for _, espacio := range p.Espacios {
-		if !espacio.Ocupado {
-			espacio.Ocupar(vehiculo)
-			return espacio
-		}
-	}
-	return nil // No hay espacios disponibles
+    espacio.Liberar()
+    e.NotificarObservadores(fmt.Sprintf("Vehículo sale del espacio %d", espacio.ID))
+
+    // Despertar vehículos en espera
+    e.CondicionEspera.Broadcast()
 }
 
-// LiberarEspacio libera un espacio ocupado.
-func (p *Parking) LiberarEspacio(idEspacio int) {
-	p.Mutex.Lock()
-	defer p.Mutex.Unlock()
+func (e *Estacionamiento) EspaciosOcupados() int {
+    ocupados := 0
+    for _, espacio := range e.Espacios {
+        if espacio.Ocupado {
+            ocupados++
+        }
+    }
+    return ocupados
+}
 
-	if idEspacio >= 0 && idEspacio < len(p.Espacios) {
-		p.Espacios[idEspacio].Liberar()
-	}
+func (e *Estacionamiento) Register(observer Observer) {
+    e.Observers = append(e.Observers, observer)
+}
+
+func (e *Estacionamiento) Unregister(observer Observer) {
+    for i, obs := range e.Observers {
+        if obs == observer {
+            e.Observers = append(e.Observers[:i], e.Observers[i+1:]...)
+            break
+        }
+    }
+}
+
+func (e *Estacionamiento) NotifyAll() {
+    // Implementación opcional de notificación general
+}
+
+func (e *Estacionamiento) NotificarObservadores(evento string) {
+    for _, obs := range e.Observers {
+        obs.Update(Pos{}) // Adaptación al Observer original
+    }
 }

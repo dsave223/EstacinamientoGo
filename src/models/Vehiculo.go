@@ -1,54 +1,57 @@
 package models
 
 import (
-	"fmt"
-	"time"
+    "math/rand"
+    "time"
 )
 
 type Vehiculo struct {
-    ID       int
-	Pos      Pos
-	Status   bool
-	Observers []Observer
-} 
+    ID             int
+    TiempoEstancia time.Duration
+    Posicion       Pos
+    ImagenPath     string
+    Observers      []Observer
+}
 
 func NewVehiculo(id int) *Vehiculo {
+    imagenes := []string{
+        "./assets/vehiculos/vehiculo1.png",
+        "./assets/vehiculos/vehiculo2.png",
+        "./assets/vehiculos/vehiculo3.png",
+    }
+    
     return &Vehiculo{
-		ID:       id,
-		Pos:      Pos{X: 0, Y: 0},
-		Status:   true,
-		Observers: []Observer{},
-	}
+        ID:         id,
+        ImagenPath: imagenes[rand.Intn(len(imagenes))],
+        Posicion:   Pos{X: 0, Y: 0},
+        Observers:  []Observer{},
+    }
 }
 
-// Register añade un observador al vehículo
+func (v *Vehiculo) GenerarTiempoEstancia() time.Duration {
+    return time.Duration(rand.Intn(2000)+3000) * time.Millisecond
+}
+
 func (v *Vehiculo) Register(observer Observer) {
-	v.Observers = append(v.Observers, observer)
-	fmt.Println("nos")
+    v.Observers = append(v.Observers, observer)
 }
 
-// Unregister elimina un observador del vehículo
 func (v *Vehiculo) Unregister(observer Observer) {
-	for i, o := range v.Observers {
-		if o == observer {
-			v.Observers = append(v.Observers[:i], v.Observers[i+1:]...)
-			break
-		}
-	}
+    for i, obs := range v.Observers {
+        if obs == observer {
+            v.Observers = append(v.Observers[:i], v.Observers[i+1:]...)
+            break
+        }
+    }
 }
 
-// NotifyAll notifica a todos los observadores sobre una actualización
 func (v *Vehiculo) NotifyAll() {
-	for _, observer := range v.Observers {
-		observer.Update(v.Pos)
-	}
+    for _, observer := range v.Observers {
+        observer.Update(v.Posicion)
+    }
 }
 
-// SimularMovimiento simula el movimiento del vehículo y notifica cambios
-func (v *Vehiculo) SimularMovimiento(x, y int32) {
-	v.Pos = Pos{X: x, Y: y}
-	v.NotifyAll()
-	time.Sleep(1 * time.Second) // Simula un tiempo de movimiento
+func (v *Vehiculo) SetPosicion(pos Pos) {
+    v.Posicion = pos
+    v.NotifyAll()
 }
-
-
