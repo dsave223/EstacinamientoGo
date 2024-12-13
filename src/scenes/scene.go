@@ -1,46 +1,55 @@
 package scenes
 
 import (
-    "fyne.io/fyne/v2"
-    "fyne.io/fyne/v2/canvas"
-    "fyne.io/fyne/v2/container"
-    "fyne.io/fyne/v2/storage"
+	"simulador/src/models"
+	"simulador/src/views"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type Scene struct {
-    scene     fyne.Window
-    container *fyne.Container
+type SceneParking struct {
+	parkingView *views.ParkingLotView
+	parkingLot *models.ParkingLot
+	CarViews   []*views.CarView
+	SpaceViews []*views.SpaceView
+	RoadView   *views.RoadView
 }
 
-func NewScene(scene fyne.Window) *Scene {
-    return &Scene{scene: scene, container: nil}
+// NewSceneParking crea una nueva escena de estacionamiento a partir del modelo lógico.
+func NewSceneParking(parkingLot *models.ParkingLot, carViews []*views.CarView, spaceViews []*views.SpaceView) *SceneParking {
+	roadView := views.NewRoadView()
+	parkingV := views.NewParkingLotView(parkingLot)
+
+	return &SceneParking{
+		parkingLot: parkingLot,
+		parkingView: parkingV,
+		CarViews:   carViews,
+		SpaceViews: spaceViews,
+		RoadView:   roadView,
+	}
 }
 
-func (s *Scene) Init() {
-    rect := canvas.NewImageFromURI(storage.NewFileURI("./assets/scene/frame.png"))
-    rect.Resize(fyne.NewSize(1280, 580))
-    rect.Move(fyne.NewPos(0, 0))
-
-    // Crear contenedor con la imagen de fondo
-    s.container = container.NewWithoutLayout(rect)
-    s.scene.SetContent(s.container)
+func (s *SceneParking) Update() error {
+	s.parkingLot.Update()
+	return nil
 }
 
-func (s *Scene) AddWidget(widget fyne.Widget) {
-    s.container.Add(widget)
-    s.container.Refresh()
+// Draw dibuja todas las vistas en la pantalla.
+func (s *SceneParking) Draw(screen *ebiten.Image) {
+	s.parkingView.Draw(screen)
+
+	s.RoadView.Draw(screen)
+
+	for _, spaceView := range s.SpaceViews {
+		spaceView.Draw(screen)
+	}
+
+	for _, carView := range s.CarViews {
+		carView.Draw(screen)
+	}
 }
 
-func (s *Scene) AddContainer(cont *fyne.Container) {
-    s.container.Add(cont)
-    s.container.Refresh()
+// Layout retorna el tamaño lógico de la escena.
+func (s *SceneParking) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return 800, 600
 }
-
-func (s *Scene) AddImage(image *canvas.Image) {
-    s.container.Add(image)
-    s.container.Refresh()
-}
-
-func (s *Scene) GetContainer() *fyne.Container {
-    return s.container
-} 

@@ -1,8 +1,7 @@
 package models
 
 type Pos struct {
-    X, Y     int32
-    Rotation float64  // Agregamos el campo Rotation
+    X, Y     int
 }
 
 type Observer interface {

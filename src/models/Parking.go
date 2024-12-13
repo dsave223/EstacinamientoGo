@@ -1,104 +1,53 @@
 package models
 
-import (
-    "fmt"
-    "sync"
-)
-
-type Estacionamiento struct {
-    Capacidad       int
-    Espacios        []*Espacio
-    EntradaSalida   sync.Mutex
-    CondicionEspera *sync.Cond
-    Observers       []Observer
+type ParkingLot struct {
+	Spaces       []*Space
+	Cars         []*Car
 }
 
-func NewEstacionamiento(capacidad int) *Estacionamiento {
-    mu := &sync.Mutex{}
-    
-    estacionamiento := &Estacionamiento{
-        Capacidad:       capacidad,
-        Espacios:        make([]*Espacio, capacidad),
-        CondicionEspera: sync.NewCond(mu),
-        Observers:       []Observer{},
-    }
-
-    // Configurar posiciones de espacios (ejemplo de disposición)
-    for i := 0; i < capacidad; i++ {
-        x := 50 + int32((i%5) * 120)
-        y := 100 + int32((i/5) * 70)
-        estacionamiento.Espacios[i] = NewEspacio(i+1, x, y)
-    }
-
-    return estacionamiento
+func NewParkingLot() *ParkingLot {
+	parkingLot := &ParkingLot{
+		Spaces:       initializeSpaces(),
+		Cars:         initializeCars(),
+	}
+	return parkingLot
 }
 
-func (e *Estacionamiento) Entrar(vehiculo *Vehiculo) *Espacio {
-    e.EntradaSalida.Lock()
-    defer e.EntradaSalida.Unlock()
+func initializeSpaces() []*Space {
+	coordinates := [][2]float64{
+		{378, 46}, {439, 46}, {501, 46}, {750, 14}, {750, 76},
+		{750, 136}, {750, 198}, {750, 260}, {750, 321}, {750, 383},
+		{750, 444}, {750, 505}, {458, 545}, {520, 545}, {582, 545},
+	}
+	rotations := []float64{
+		0, 0, 0, 90, 90,
+		90, 90, 90, 90, 90,
+		90, 90, 180, 180, 180,
+	}
 
-    // Esperar mientras no haya espacios disponibles
-    for e.EspaciosOcupados() >= e.Capacidad {
-        e.NotificarObservadores(fmt.Sprintf("Vehículo %d esperando espacio", vehiculo.ID))
-        e.CondicionEspera.Wait()
-    }
-
-    // Encontrar y ocupar un espacio disponible
-    for _, espacio := range e.Espacios {
-        if !espacio.Ocupado {
-            espacio.Ocupar(vehiculo)
-            e.NotificarObservadores(fmt.Sprintf("Vehículo %d entra en espacio %d", vehiculo.ID, espacio.ID))
-            
-            // Configurar posición del vehículo en el espacio
-            vehiculo.SetPosicion(espacio.Posicion)
-            
-            return espacio
-        }
-    }
-
-    return nil
+	var spaces []*Space
+	for i := 0; i < 15; i++ {
+		x, y := coordinates[i][0], coordinates[i][1]
+		rotation := rotations[i]
+		space := NewSpace(i, x, y, 0.16, rotation)
+		spaces = append(spaces, space)
+	}
+	return spaces
 }
 
-func (e *Estacionamiento) Salir(espacio *Espacio) {
-    e.EntradaSalida.Lock()
-    defer e.EntradaSalida.Unlock()
+func initializeCars() []*Car{
+	var cars []*Car
 
-    espacio.Liberar()
-    e.NotificarObservadores(fmt.Sprintf("Vehículo sale del espacio %d", espacio.ID))
-
-    // Despertar vehículos en espera
-    e.CondicionEspera.Broadcast()
+	for i := 0; i < 15; i++ {
+		car := NewCar(i, 170.0, -1.0, 1.0, 2.0)
+		cars = append(cars, car)
+	}
+	
+	return cars
 }
 
-func (e *Estacionamiento) EspaciosOcupados() int {
-    ocupados := 0
-    for _, espacio := range e.Espacios {
-        if espacio.Ocupado {
-            ocupados++
-        }
-    }
-    return ocupados
-}
-
-func (e *Estacionamiento) Register(observer Observer) {
-    e.Observers = append(e.Observers, observer)
-}
-
-func (e *Estacionamiento) Unregister(observer Observer) {
-    for i, obs := range e.Observers {
-        if obs == observer {
-            e.Observers = append(e.Observers[:i], e.Observers[i+1:]...)
-            break
-        }
-    }
-}
-
-func (e *Estacionamiento) NotifyAll() {
-    // Implementación opcional de notificación general
-}
-
-func (e *Estacionamiento) NotificarObservadores(evento string) {
-    for _, obs := range e.Observers {
-        obs.Update(Pos{}) // Adaptación al Observer original
-    }
+func (p *ParkingLot) Update() {
+	for _, car := range p.Cars {
+		car.Update()
+	}
 }
